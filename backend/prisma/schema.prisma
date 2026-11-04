@@ -1,6 +1,6 @@
 generator client {
-  provider   = "prisma-client"
-  output     = "./generated"
+  provider = "prisma-client"
+  output   = "./generated"
 }
 
 datasource db {
@@ -8,20 +8,61 @@ datasource db {
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
-  posts Post[]
+  id        Int         @id @default(autoincrement())
+  username  String      @unique
+  email     String      @unique
+  password  String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  watchlist Watchlist[]
+  reviews   Review[]
+
+  @@map("users")
 }
 
-model Post {
+model Movie {
+  id         Int         @id @default(autoincrement())
+  title      String
+  year       Int
+  director   String
+  genres     String[]
+  rating     Float
+  duration   String
+  synopsis   String      @db.Text
+  poster_url String
+  cast       String[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  watchlist  Watchlist[]
+  reviews    Review[]
+
+  @@map("movies")
+}
+
+model Watchlist {
   id        Int      @id @default(autoincrement())
+  userId    Int
+  movieId   Int
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, movieId])
+  @@map("watchlists")
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  movieId   Int
+  rating    Int
+  review    String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  viewCount Int      @default(0)
-  author    User?    @relation(fields: [authorId], references: [id])
-  authorId  Int?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movie Movie @relation(fields: [movieId], references: [id], onDelete: Cascade)
+
+  @@map("reviews")
 }

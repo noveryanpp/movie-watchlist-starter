@@ -22,7 +22,7 @@ export class UserController {
       where: search
         ? {
             OR: [
-              { name: { contains: search } },
+              { username: { contains: search } },
               { email: { contains: search } },
             ],
           }
@@ -40,7 +40,7 @@ export class UserController {
 
   @Post()
   async create(
-    @Body() userData: { name?: string; email: string },
+    @Body() userData: { username: string; email: string; password: string },
   ): Promise<UserModel> {
     return this.userService.createUser(userData);
   }
