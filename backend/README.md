@@ -1,514 +1,141 @@
-# REST API Example with NestJS & Prisma Postgres
+# FilmLog — Backend API Service
 
-This example shows how to implement a **REST API** using [NestJS](https://docs.nestjs.com/) and Prisma ORM. It uses a [Prisma Postgres](https://www.prisma.io/postgres) database and was bootstrapped using the NestJS CLI command `nest new nest`.
+Layanan backend **RESTful API** untuk platform **FilmLog (Movie Watchlist & Review Platform)** yang dibangun menggunakan **NestJS**, **Prisma ORM (v7)**, dan **PostgreSQL**.
 
-## Getting started
+Backend ini dirancang untuk melayani kebutuhan frontend companion (Letterboxd-style SPA) yang mencakup alur autentikasi pengguna, katalog film, manajemen watchlist, riwayat tontonan beserta ulasan, serta integrasi AI rekomendasi.
 
-### 1. Download example and navigate into the project directory
+---
 
-Download this example:
+## 🛠️ Tech Stack & Prerequisites
 
-```
-npx try-prisma@latest --template orm/nest --install npm --name nest
-```
+- **Framework:** [NestJS](https://nestjs.com/) (Express platform)
+- **Language:** TypeScript / Node.js (>= 18)
+- **Database & ORM:** PostgreSQL dengan [Prisma ORM](https://www.prisma.io/) (`@prisma/client` & `@prisma/adapter-pg`)
+- **Package Manager:** `npm` (atau `bun` / `pnpm` / `yarn`)
 
-Then, navigate into the project directory:
+Pastikan PostgreSQL sudah terpasang dan berjalan di mesin lokal Anda sebelum memulai.
 
-```
-cd nest
-```
+---
 
-<details><summary><strong>Alternative:</strong> Clone the entire repo</summary>
+## 🚀 Panduan Menjalankan Backend
 
-Clone this repository:
-
-```
-git clone git@github.com:prisma/prisma-examples.git --depth=1
-```
-
-Install npm dependencies:
-
-```
-cd prisma-examples/orm/nest
+### 1. Masuk ke Direktori Backend & Install Dependencies
+```bash
+cd backend
 npm install
 ```
 
-</details>
-
-### 2. Create and seed the database
-
-Create a new [Prisma Postgres](https://www.prisma.io/docs/postgres/overview) database by executing:
-
-```terminal
-npx prisma init --db
-```
-
-If you don't have a [Prisma Data Platform](https://console.prisma.io/) account yet, or if you are not logged in, the command will prompt you to log in using one of the available authentication providers. A browser window will open so you can log in or create an account. Return to the CLI after you have completed this step.
-
-Once logged in (or if you were already logged in), the CLI will prompt you to:
-1. Select a **region** (e.g. `us-east-1`)
-1. Enter a **project name**
-
-After successful creation, you will see output similar to the following:
-
-<details>
-
-<summary>CLI output</summary>
-
-```terminal
-Let's set up your Prisma Postgres database!
-? Select your region: ap-northeast-1 - Asia Pacific (Tokyo)
-? Enter a project name: testing-migration
-✔ Success! Your Prisma Postgres database is ready ✅
-
-We found an existing schema.prisma file in your current project directory.
-
---- Database URL ---
-
-Connect Prisma ORM to your Prisma Postgres database with this URL:
-
-postgresql://user:password@host:port/database
-
---- Next steps ---
-
-Go to https://pris.ly/ppg-init for detailed instructions.
-
-1. Install the PostgreSQL adapter
-This example uses the PostgreSQL driver adapter. If you haven't already installed it, install it in your project:
-npm install @prisma/adapter-pg
-
-2. Apply migrations
-Run the following command to create and apply a migration:
-npx prisma migrate dev
-
-3. Manage your data
-View and edit your data locally by running this command:
-npx prisma studio
-
-...or online in Console:
-https://console.prisma.io/{workspaceId}/{projectId}/studio
-
-4. Send queries from your app
-If you already have an existing app with Prisma ORM, you can now run it and it will send queries against your newly created Prisma Postgres instance.
-
-5. Learn more
-For more info, visit the Prisma Postgres docs: https://pris.ly/ppg-docs
-```
-
-</details>
-
-Locate and copy the database URL provided in the CLI output. Then, create a `.env` file in the project root:
-
+### 2. Konfigurasi Environment Variables
+Buat atau sesuaikan file `.env` pada root direktori `backend/`:
 ```bash
-touch .env
+cp .env.example .env
 ```
 
-Now, paste the URL into it as a value for the `DATABASE_URL` environment variable. For example:
+Isi konfigurasi database dan kredensial yang dibutuhkan:
+```env
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/filmlog_db?schema=public"
 
+# Secrets
+JWT_SECRET="your-super-secret-jwt-key"
+GEMINI_API_KEY="your-google-gemini-api-key"
+```
+
+### 3. Migrasi & Seed Database
+Jalankan migrasi Prisma untuk membuat tabel-tabel yang diperlukan:
 ```bash
-# .env
-DATABASE_URL=postgresql://user:password@host:port/database
-```
+# Generate Prisma Client
+npx prisma generate
 
-Run the following command to create tables in your database. This creates the `User` and `Post` tables that are defined in [`prisma/schema.prisma`](./prisma/schema.prisma):
-
-```terminal
+# Jalankan migrasi database
 npx prisma migrate dev --name init
-```
 
-### 2.1. Configure Prisma Client with the adapter
-
-This example uses the PostgreSQL driver adapter. The Prisma Client is configured in [`src/prisma.service.ts`](./src/prisma.service.ts):
-
-```ts
-import { PrismaClient } from '../prisma/generated/client'
-import { PrismaPg } from '@prisma/adapter-pg'
-
-const pool = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
-const prisma = new PrismaClient({ adapter: pool })
-```
-
-Execute the seed file in [`prisma/seed.ts`](./prisma/seed.ts) to populate your database with some sample data, by running:
-
-```terminal
+# (Opsional) Jalankan data seeder
 npx prisma db seed
 ```
+### 4. Menjalankan Server Aplikasi
 
-### 3. Start the REST API server
+Pilih salah satu mode eksekusi:
 
-```
+**Mode Pengembangan (Watch/Hot-reload):**
+```bash
 npm run dev
+# atau: npm run start:dev
 ```
 
-The server is now running on `http://localhost:3000`. You can now run the API requests, e.g. [`http://localhost:3000/feed`](http://localhost:3000/feed).
-
-## Using the REST API
-
-### Testing with `curl`
-
-You can run these `curl` commands to test all API endpoints:
-
-#### `GET`
-
-##### Fetch a single post by its ID
-
-```sh
-curl -X GET http://localhost:3000/post/1
+**Mode Standar:**
+```bash
+npm run start
 ```
 
-##### Fetch all published posts (with optional query parameters)
-
-```sh
-curl -X GET "http://localhost:3000/feed?searchString=prisma&take=2&orderBy=desc"
+**Mode Produksi:**
+```bash
+npm run build
+npm run start:prod
 ```
 
-##### Fetch a user's drafts by their ID
+Server backend secara default akan berjalan di `http://localhost:3000` (atau `http://localhost:8000` jika Anda menyesuaikan port agar langsung cocok dengan default frontend companion).
 
-```sh
-curl -X GET http://localhost:3000/user/3/drafts
+---
+
+## ⚙️ Integrasi dengan Frontend Companion
+
+Frontend FilmLog (`frontend/`) secara default menembak endpoint pada:
+```text
+http://localhost:8000/api
 ```
 
-##### Fetch all users
-
-```sh
-curl -X GET http://localhost:3000/users
-```
-
-#### `POST`
-
-##### Create a new post
-
-```sh
-curl -X POST http://localhost:3000/post \
-     -H "Content-Type: application/json" \
-     -d '{
-           "title": "My New Post",
-           "content": "This is an example post.",
-           "authorEmail": "mahmoud@prisma.io"
-         }'
-```
-
-##### Create a new user
-
-```sh
-curl -X POST http://localhost:3000/signup \
-     -H "Content-Type: application/json" \
-     -d '{
-           "email": "ankur@prisma.io",
-           "name": "Ankur Datta",
-           "postData": [
-             {
-               "title": "Hello World",
-               "content": "This is the content of the post"
-             }
-           ]
-         }'
-```
-
-#### `PUT`
-
-##### Toggle the publish status of a post
-
-```sh
-curl -X PUT http://localhost:3000/publish/4
-```
-
-##### Increase the view count of a post
-
-```sh
-curl -X PUT http://localhost:3000/post/2/views
-```
-
-#### `DELETE`
-
-##### Delete a post by its ID
-
-```sh
-curl -X DELETE http://localhost:3000/post/1
-```
-
-### API endpoints
-
-<details><summary>Expand to see all API endpoints</summary>
-
-### `GET`
-
-- `/post/:id`: Fetch a single post by its `id`
-- `/feed?searchString={searchString}&take={take}&skip={skip}&orderBy={orderBy}`: Fetch all _published_ posts
-  - Query Parameters
-    - `searchString` (optional): This filters posts by `title` or `content`
-    - `take` (optional): This specifies how many objects should be returned in the list
-    - `skip` (optional): This specifies how many of the returned objects in the list should be skipped
-    - `orderBy` (optional): The sort order for posts in either ascending or descending order. The value can either `asc` or `desc`
-- `/user/:id/drafts`: Fetch user's drafts by their `id`
-- `/users`: Fetch all users
-
-### `POST`
-
-- `/post`: Create a new post
-  - Body:
-    - `title: String` (required): The title of the post
-    - `content: String` (optional): The content of the post
-    - `authorEmail: String` (required): The email of the user that creates the post
-- `/signup`: Create a new user
-  - Body:
-    - `email: String` (required): The email address of the user
-    - `name: String` (optional): The name of the user
-    - `postData: PostCreateInput[]` (optional): The posts of the user
-
-### `PUT`
-
-- `/publish/:id`: Toggle the publish value of a post by its `id`
-- `/post/:id/views`: Increases the `viewCount` of a `Post` by one `id`
-
-### `DELETE`
-
-- `/post/:id`: Delete a post by its `id`
-
-</details>
-
-
-## Evolving the app
-
-Evolving the application typically requires two steps:
-
-1. Migrate your database using Prisma Migrate
-1. Update your application code
-
-For the following example scenario, assume you want to add a "profile" feature to the app where users can create a profile and write a short bio about themselves.
-
-### 1. Migrate your database using Prisma Migrate
-
-The first step is to add a new table, e.g. called `Profile`, to the database. You can do this by adding a new model to your [Prisma schema file](./prisma/schema.prisma) file and then running a migration afterwards:
-
-```diff
-// ./prisma/schema.prisma
-
-model User {
-  id      Int      @default(autoincrement()) @id
-  name    String?
-  email   String   @unique
-  posts   Post[]
-+ profile Profile?
-}
-
-model Post {
-  id        Int      @id @default(autoincrement())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  title     String
-  content   String?
-  published Boolean  @default(false)
-  viewCount Int      @default(0)
-  author    User?    @relation(fields: [authorId], references: [id])
-  authorId  Int?
-}
-
-+model Profile {
-+  id     Int     @default(autoincrement()) @id
-+  bio    String?
-+  user   User    @relation(fields: [userId], references: [id])
-+  userId Int     @unique
-+}
-```
-
-Once you've updated your data model, you can execute the changes against your database with the following command:
-
-```
-npx prisma migrate dev --name add-profile
-```
-
-This adds another migration to the `prisma/migrations` directory and creates the new `Profile` table in the database.
-
-### 2. Update your application code
-
-You can now use your `PrismaClient` instance to perform operations against the new `Profile` table. Those operations can be used to implement API endpoints in the REST API.
-
-#### 2.1 Add the API endpoint to your app
-
-Update your `AppController` class inside `app.controller.ts` file by adding a new endpoint to your API:
-
-```ts
-@Post('user/:id/profile')
-async createUserProfile(
-  @Param('id') id: string,
-  @Body() userBio: { bio: string }
-): Promise<Profile> {
-  return this.prismaService.profile.create({
-    data: {
-      bio: userBio.bio,
-      user: {
-        connect: {
-          id: Number(id)
-        }
-      }
-    }
-  })
-}
-```
-
-At the top of `app.controller.ts`, update your imports to include `Profile` from `@prisma/client` as follows:
-
-```ts
-import {
-  User as UserModel,
-  Post as PostModel,
-  Prisma,
-  Profile,
-} from '@prisma/client';
-```
-
-#### 2.2 Testing out your new endpoint
-
-Restart your application server and test out your new endpoint.
-
-##### `POST`
-
-- `/user/:id/profile`: Create a new profile based on the user id
-  - Body:
-    - `bio: String` : The bio of the user
-
-<details><summary>Expand to view more sample Prisma Client queries on <code>Profile</code></summary>
-
-Here are some more sample Prisma Client queries on the new <code>Profile</code> model:
-
-##### Create a new profile for an existing user
-
-```ts
-const profile = await prisma.profile.create({
-  data: {
-    bio: 'Hello World',
-    user: {
-      connect: { email: 'alice@prisma.io' },
-    },
-  },
-});
-```
-
-##### Create a new user with a new profile
-
-```ts
-const user = await prisma.user.create({
-  data: {
-    email: 'john@prisma.io',
-    name: 'John',
-    profile: {
-      create: {
-        bio: 'Hello World',
-      },
-    },
-  },
-});
-```
-
-##### Update the profile of an existing user
-
-```ts
-const userWithUpdatedProfile = await prisma.user.update({
-  where: { email: 'alice@prisma.io' },
-  data: {
-    profile: {
-      update: {
-        bio: 'Hello Friends',
-      },
-    },
-  },
-});
-```
-
-</details>
-
-## Switch to another database (e.g. SQLite, MySQL, SQL Server, MongoDB)
-
-If you want to try this example with another database than Postgres, you can adjust the the database connection in [`prisma/schema.prisma`](./prisma/schema.prisma) by reconfiguring the `datasource` block.
-
-Learn more about the different connection configurations in the [docs](https://www.prisma.io/docs/reference/database-reference/connection-urls).
-
-<details><summary>Expand for an overview of example configurations with different databases</summary>
-
-### Your own PostgreSQL database
-
-This example already uses a standard PostgreSQL connection with the `@prisma/adapter-pg` adapter. You can connect to any PostgreSQL database using a standard connection string.
-
-### SQLite
-
-Modify the `provider` value in the `datasource` block in the [`prisma.schema`](./prisma/schema.prisma) file:
-
-```prisma
-datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
-}
-```
-
-Create an `.env` file and add the SQLite database connection string in it. For example:
-
-```terminal
-DATABASE_URL="file:./dev.db""
-```
-
-### MySQL
-
-Modify the `provider` value in the `datasource` block in the [`prisma.schema`](./prisma/schema.prisma) file:
-
-```prisma
-datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
-}
-```
-
-Create an `.env` file and add a MySQL database connection string in it. For example:
-
-```terminal
-## This is a placeholder url
-DATABASE_URL="mysql://janedoe:mypassword@localhost:3306/notesapi"
-```
-
-### Microsoft SQL Server
-
-Modify the `provider` value in the `datasource` block in the [`prisma.schema`](./prisma/schema.prisma) file:
-
-```prisma
-datasource db {
-  provider = "sqlserver"
-  url      = env("DATABASE_URL")
-}
-```
-
-Create an `.env` file and add a Microsoft SQL Server database connection string in it. For example:
-
-```terminal
-## This is a placeholder url
-DATABASE_URL="sqlserver://localhost:1433;initial catalog=sample;user=sa;password=mypassword;"
-```
-
-### MongoDB
-
-Modify the `provider` value in the `datasource` block in the [`prisma.schema`](./prisma/schema.prisma) file:
-
-```prisma
-datasource db {
-  provider = "mongodb"
-  url      = env("DATABASE_URL")
-}
-```
-
-Create an `.env` file and add a local MongoDB database connection string in it. For example:
-
-```terminal
-## This is a placeholder url
-DATABASE_URL="mongodb://USERNAME:PASSWORD@HOST/DATABASE?authSource=admin&retryWrites=true&w=majority"
-```
-
-</details>
-
-## Next steps
-
-- Check out the [Prisma docs](https://www.prisma.io/docs)
-- [Join our community on Discord](https://pris.ly/discord?utm_source=github&utm_medium=prisma_examples&utm_content=next_steps_section) to share feedback and interact with other users.
-- [Subscribe to our YouTube channel](https://pris.ly/youtube?utm_source=github&utm_medium=prisma_examples&utm_content=next_steps_section) for live demos and video tutorials.
-- [Follow us on X](https://pris.ly/x?utm_source=github&utm_medium=prisma_examples&utm_content=next_steps_section) for the latest updates.
-- Report issues or ask [questions on GitHub](https://pris.ly/github?utm_source=github&utm_medium=prisma_examples&utm_content=next_steps_section).
-
-
+### Rekomendasi Pengaturan:
+1. **CORS:** Pastikan CORS telah diaktifkan di NestJS (`main.ts`):
+   ```typescript
+   app.enableCors();
+   ```
+2. **Global Prefix:** Jika menggunakan routing dengan prefix `/api`, aktifkan global prefix di `main.ts`:
+   ```typescript
+   app.setGlobalPrefix('api');
+   ```
+3. **Port Match:** Sesuaikan port listen aplikasi di `src/main.ts` (misalnya `await app.listen(8000)`) atau sesuaikan setting port di menu **⚙️ Settings** pada Frontend Companion.
+
+---
+
+## 📋 Endpoint yang Didukung
+
+Mengacu pada spesifikasi kontrak API di panduan utama:
+
+### 1. Autentikasi
+- `POST /api/auth/register` — Pendaftaran pengguna baru.
+- `POST /api/auth/login` — Autentikasi pengguna & penerbitan token JWT.
+
+### 2. Movies
+- `GET /api/movies` — Mendapatkan daftar katalog film (mendukung query filter `genre` dan `search`).
+- `GET /api/movies/:id` — Mendapatkan informasi detail lengkap satu film.
+
+### 3. Watchlist (Protected — `Bearer <token>`)
+- `GET /api/watchlist` — Daftar film di watchlist pengguna yang sedang aktif.
+- `POST /api/watchlist` — Menambahkan film ke watchlist (`{ "movieId": number }`).
+- `DELETE /api/watchlist/:movieId` — Menghapus film dari watchlist pengguna.
+
+### 4. Watched & Review (Protected — `Bearer <token>`)
+- `GET /api/watched` — Riwayat film yang telah ditonton beserta catatan ulasan dan rating.
+- `POST /api/watched` — Mencatat film yang ditonton (`{ "movieId": number, "rating": number, "review": string }`).
+
+### 5. AI Recommendation (Gemini API Integration ⭐)
+- `POST /api/movies/recommend` — Rekomendasi film berbasis prompt/mood pengguna menggunakan Google Gemini LLM yang dipilih dari subset data lokal.
+
+---
+
+## 🧪 Testing & Database Studio
+
+- **Menjalankan Unit Test:**
+  ```bash
+  npm run test
+  ```
+- **Menjalankan E2E Test:**
+  ```bash
+  npm run test:e2e
+  ```
+- **Inspeksi Data Visual (Prisma Studio):**
+  ```bash
+  npx prisma studio
+  ```
+  Buka `http://localhost:5555` pada browser untuk melihat dan memanipulasi data tabel secara langsung.
