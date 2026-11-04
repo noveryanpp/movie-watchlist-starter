@@ -117,7 +117,7 @@ describe('MovieService', () => {
 
       expect(generateContent).toHaveBeenCalledWith(
         expect.objectContaining({
-          model: 'gemini-2.0-flash',
+          model: 'gemini-3.1-flash-lite',
           contents: 'Saya mau film misteri dengan alur lambat',
         }),
       );
