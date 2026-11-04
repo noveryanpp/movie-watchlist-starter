@@ -1,20 +1,62 @@
-import { NotFoundException } from '@nestjs/common';
+import {
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { MovieService } from './movie.service';
 
 const catalog = [
-  { id: 1, title: 'Inception', director: 'Christopher Nolan', genres: ['Sci-Fi', 'Action', 'Thriller'] },
-  { id: 2, title: 'Parasite', director: 'Bong Joon-ho', genres: ['Drama', 'Thriller', 'Comedy'] },
-  { id: 6, title: 'Spirited Away', director: 'Hayao Miyazaki', genres: ['Animation', 'Adventure', 'Fantasy'] },
+  {
+    id: 1,
+    title: 'Inception',
+    year: 2010,
+    director: 'Christopher Nolan',
+    genres: ['Sci-Fi', 'Action', 'Thriller'],
+    rating: 8.8,
+    duration: '148 min',
+    synopsis: 'A thief who steals corporate secrets through dream-sharing technology.',
+    poster_url: 'https://example.com/1.jpg',
+    cast: ['Leonardo DiCaprio'],
+  },
+  {
+    id: 2,
+    title: 'Parasite',
+    year: 2019,
+    director: 'Bong Joon-ho',
+    genres: ['Drama', 'Thriller', 'Comedy'],
+    rating: 8.5,
+    duration: '132 min',
+    synopsis: 'Greed and class discrimination threaten the newly formed symbiotic relationship.',
+    poster_url: 'https://example.com/2.jpg',
+    cast: ['Song Kang-ho'],
+  },
+  {
+    id: 14,
+    title: 'Memento',
+    year: 2000,
+    director: 'Christopher Nolan',
+    genres: ['Mystery', 'Thriller'],
+    rating: 8.4,
+    duration: '113 min',
+    synopsis: 'A man with short-term memory loss attempts to track down his wife murderer.',
+    poster_url: 'https://example.com/14.jpg',
+    cast: ['Guy Pearce'],
+  },
 ];
 
 describe('MovieService', () => {
   const prisma = { movie: { findMany: jest.fn(), findUnique: jest.fn() } };
   let service: MovieService;
+  const originalEnv = process.env.GEMINI_API_KEY;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
     prisma.movie.findMany.mockResolvedValue(catalog);
     service = new MovieService(prisma as any);
+  });
+
+  afterAll(() => {
+    process.env.GEMINI_API_KEY = originalEnv;
   });
 
   it('returns everything ordered by id when no filters are given', async () => {
@@ -52,7 +94,61 @@ describe('MovieService', () => {
 
   it('findOne throws 404 when missing', async () => {
     prisma.movie.findUnique.mockResolvedValue(null);
-    await expect(service.findOne(999)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.findOne(999)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  describe('recommend', () => {
+    it('grounds Gemini with local catalog and returns movie_id, reasoning, and movie', async () => {
+      const generateContent = jest.fn().mockResolvedValue({
+        text: JSON.stringify({
+          movie_id: 14,
+          reasoning: 'Memento sangat cocok dengan suasana misteri dan alur mundur.',
+        }),
+      });
+      jest
+        .spyOn(service as any, 'createGenAiClient')
+        .mockReturnValue({ models: { generateContent } });
+
+      const result = await service.recommend({
+        prompt: 'Saya mau film misteri dengan alur lambat',
+      });
+
+      expect(generateContent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'gemini-2.0-flash',
+          contents: 'Saya mau film misteri dengan alur lambat',
+        }),
+      );
+      const callArg = generateContent.mock.calls[0][0];
+      expect(callArg.config.systemInstruction).toContain('ID: 14 | Title: "Memento"');
+      expect(result).toEqual({
+        movie_id: 14,
+        reasoning: 'Memento sangat cocok dengan suasana misteri dan alur mundur.',
+        movie: catalog[2],
+      });
+    });
+
+    it('throws 503 when GEMINI_API_KEY is missing', async () => {
+      delete process.env.GEMINI_API_KEY;
+      await expect(
+        service.recommend({ prompt: 'thriller' }),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
+
+    it('throws 503 when Gemini returns a movie_id not in the local catalog', async () => {
+      jest.spyOn(service as any, 'createGenAiClient').mockReturnValue({
+        models: {
+          generateContent: jest.fn().mockResolvedValue({
+            text: JSON.stringify({ movie_id: 999, reasoning: 'Hallucinated movie' }),
+          }),
+        },
+      });
+
+      await expect(
+        service.recommend({ prompt: 'thriller' }),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
   });
 });
-
