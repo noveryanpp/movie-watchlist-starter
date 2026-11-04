@@ -1,3 +1,4 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsNotEmpty,
   IsOptional,
@@ -6,6 +7,10 @@ import {
 } from 'class-validator';
 
 export class RecommendMovieDto {
+  @ApiProperty({
+    example: 'Saya mau film misteri dengan alur lambat dan atmosfer mendalam',
+    description: 'User mood or movie preference description',
+  })
   @ValidateIf(
     (o) =>
       o.prompt !== undefined ||
@@ -15,14 +20,21 @@ export class RecommendMovieDto {
   @IsNotEmpty()
   prompt?: string;
 
+  @ApiPropertyOptional({
+    example: 'Mind-bending sci-fi thriller',
+    description: 'Optional alias for prompt sent by companion frontend',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   query?: string;
 
+  @ApiPropertyOptional({
+    example: 'Mind-bending sci-fi thriller',
+    description: 'Optional alias for prompt sent by companion frontend',
+  })
   @IsOptional()
   @IsString()
   @IsNotEmpty()
   description?: string;
 }
-

@@ -44,6 +44,7 @@
     "@nestjs/jwt": "^10",
     "@nestjs/passport": "^10",
     "@nestjs/platform-express": "10.4.22",
+    "@nestjs/swagger": "^12.1.0",
     "@prisma/adapter-pg": "7.0.0",
     "@prisma/client": "7.0.0",
     "bcrypt": "^6.0.0",
