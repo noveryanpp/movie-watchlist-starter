@@ -6,6 +6,9 @@
 /dist
 /node_modules
 
+# prisma generated files
+/prisma/generated
+
 # Logs
 logs
 *.log
