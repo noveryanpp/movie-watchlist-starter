@@ -92,7 +92,7 @@ export class MovieService {
     try {
       const ai = this.createGenAiClient(apiKey);
       const response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-lite',
+        model: 'gemini-3.5-flash-lite',
         contents: userPrompt,
         config: {
           systemInstruction,
